@@ -16,8 +16,6 @@ def _make_llm(max_tokens=2048):
         max_tokens=max_tokens,
     )
 
-llm = _make_llm()
-
 def _invoke_with_retry(fn, *args, retries=3, wait=8, **kwargs):
     for attempt in range(retries):
         try:
@@ -30,16 +28,15 @@ def _invoke_with_retry(fn, *args, retries=3, wait=8, **kwargs):
             else:
                 raise
 
-def _extract_first_url(search_text: str) -> str | None:
-    """Pull the first URL out of search results so we don't send a wall of text to the LLM."""
+def _extract_first_url(search_text: str):
     urls = re.findall(r'https?://[^\s\)\]\"\']+', search_text)
-    # prefer non-wikipedia, non-pdf links
     for u in urls:
         if "wikipedia" not in u and ".pdf" not in u:
             return u.rstrip(".,;)")
     return urls[0].rstrip(".,;)") if urls else None
 
 def build_search_agent():
+    llm = _make_llm()
     agent = create_react_agent(
         model=llm,
         tools=[web_search],
@@ -51,10 +48,6 @@ def build_search_agent():
     return WrappedAgent()
 
 def build_reader_agent():
-    """
-    Bypass the LLM agent entirely — llama-3.1-8b-instant hallucinates
-    tools like 'brave_search'. Just extract the URL and call scrape_url directly.
-    """
     class DirectScraper:
         def invoke(self, inp):
             messages = inp.get("messages", [])
@@ -67,18 +60,16 @@ def build_reader_agent():
                     scraped = scrape_url.invoke(url)
                 except Exception as ex:
                     scraped = f"Scrape failed: {ex}"
-
-            # Return an object with .content so app.py can do rr["messages"][-1].content
             class _Msg:
                 def __init__(self, text): self.content = text
             return {"messages": [_Msg(scraped)]}
-
     return DirectScraper()
 
-# Writer chain
-writer_prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are an expert research writer. Write clear, structured and insightful reports."),
-    ("human", """Write a detailed research report on the topic below.
+def build_writer_chain():
+    llm = _make_llm()
+    writer_prompt = ChatPromptTemplate.from_messages([
+        ("system", "You are an expert research writer. Write clear, structured and insightful reports."),
+        ("human", """Write a detailed research report on the topic below.
 
 Topic: {topic}
 Research Gathered:
@@ -91,13 +82,14 @@ Structure the report as:
 - Sources (list all URLs found in the research)
 
 Be detailed, factual and professional."""),
-])
-writer_chain = writer_prompt | llm | StrOutputParser()
+    ])
+    return writer_prompt | llm | StrOutputParser()
 
-# Critic chain
-critic_prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are a sharp and constructive research critic. Be honest and specific."),
-    ("human", """Review the research report below and evaluate it strictly.
+def build_critic_chain():
+    llm = _make_llm()
+    critic_prompt = ChatPromptTemplate.from_messages([
+        ("system", "You are a sharp and constructive research critic. Be honest and specific."),
+        ("human", """Review the research report below and evaluate it strictly.
 
 Report:
 {report}
@@ -112,5 +104,5 @@ Areas to Improve:
 - ...
 One line verdict:
 ..."""),
-])
-critic_chain = critic_prompt | llm | StrOutputParser()
+    ])
+    return critic_prompt | llm | StrOutputParser()
