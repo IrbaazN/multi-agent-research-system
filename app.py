@@ -53,7 +53,7 @@ html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; color: #e8e4dc;
 .panel-label.orange { color: #ff8c32; border-bottom: 1px solid rgba(255,140,50,0.15); }
 .panel-label.green { color: #50c878; border-bottom: 1px solid rgba(80,200,120,0.15); }
 .section-heading { font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 700; color: #f0ebe0; margin: 2rem 0 1rem; }
-.result-content { font-size: 0.92rem; line-height: 1.8; color: #cdc8bf; white-space: pre-wrap; }
+.result-content { font-size: 0.92rem; line-height: 1.8; color: #cdc8bf; white-space: normal; }
 .notice { font-family: 'DM Mono', monospace; font-size: 0.72rem; color: #605850; text-align: center; margin-top: 3rem; letter-spacing: 0.08em; }
 </style>
 """, unsafe_allow_html=True)
@@ -225,7 +225,7 @@ if r:
         st.markdown(f"""
         <div class="report-panel">
             <div class="panel-label orange">📝 Final Research Report</div>
-            <div class="result-content">{r["writer"]}</div>
+            <div class="result-content">{r["writer"].replace(chr(10), "<br>")}</div>
         </div>
         """, unsafe_allow_html=True)
         st.download_button(
@@ -239,7 +239,7 @@ if r:
         st.markdown(f"""
         <div class="feedback-panel">
             <div class="panel-label green">🧐 Critic Feedback</div>
-            <div class="result-content">{r["critic"]}</div>
+            <div class="result-content">{r["writer"].replace(chr(10), "<br>")}</div>
         </div>
         """, unsafe_allow_html=True)
 
